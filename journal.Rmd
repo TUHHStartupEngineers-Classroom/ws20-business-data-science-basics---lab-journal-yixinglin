@@ -90,7 +90,24 @@ labs(
 )
 ```
 
-## Second level header
+# Data Acquistition
+Weather forecast of Hamburg
+Provider: http://www.7timer.info/doc.php?lang=en
+```{r table_weather forecast}
+library(httr)
+url = "http://www.7timer.info/bin/astro.php?lon=10.0&lat=53.6&ac=0&unit=metric&output=json&tzshift=0"
+resp <- GET(url)
+library(jsonlite)
+df_weather  <-  resp %>% 
+  .$content %>% 
+  rawToChar() %>% 
+  fromJSON() %>%
+  as.data.frame()
+
+df_weather %>% head(10)
+
+
+```
 
 You can add more headers by adding more hashtags. These won't be put into the table of contents
 

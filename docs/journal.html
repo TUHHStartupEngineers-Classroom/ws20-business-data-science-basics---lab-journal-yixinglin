@@ -412,8 +412,8 @@ div.tocify {
 
 <p><strong>IMPORTANT:</strong> You can delete everything in here and start fresh. You might want to start by not deleting anything above this line until you know what that stuff is doing.</p>
 <p>This is an <code>.Rmd</code> file. It is plain text with special features. Any time you write just like this, it will be compiled to normal text in the website. If you put a # in front of your text, it will create a top level-header.</p>
-<div id="my-first-post-bike-sales" class="section level1">
-<h1><span class="header-section-number">1</span> My first post (Bike Sales)</h1>
+<div id="bike-sales" class="section level1">
+<h1><span class="header-section-number">1</span> 1. Bike Sales</h1>
 <div id="analyze-the-sales-by-location-state-with-a-bar-plot." class="section level2">
 <h2><span class="header-section-number">1.1</span> 1. Analyze the sales by location (state) with a bar plot.</h2>
 <pre class="r"><code>library(&quot;tidyverse&quot;)
@@ -480,22 +480,78 @@ labs(
 )</code></pre>
 <p><img src="journal_files/figure-html/plot_bike_sales2-1.png" width="960" /></p>
 </div>
-<div id="second-level-header" class="section level2">
-<h2><span class="header-section-number">1.2</span> Second level header</h2>
+</div>
+<div id="data-acquistition" class="section level1">
+<h1><span class="header-section-number">2</span> Data Acquistition</h1>
+<p>Weather forecast of Hamburg Provider: <a href="http://www.7timer.info/doc.php?lang=en" class="uri">http://www.7timer.info/doc.php?lang=en</a></p>
+<pre class="r"><code>library(httr)
+url = &quot;http://www.7timer.info/bin/astro.php?lon=10.0&amp;lat=53.6&amp;ac=0&amp;unit=metric&amp;output=json&amp;tzshift=0&quot;
+resp &lt;- GET(url)
+library(jsonlite)
+df_weather  &lt;-  resp %&gt;% 
+  .$content %&gt;% 
+  rawToChar() %&gt;% 
+  fromJSON() %&gt;%
+  as.data.frame()
+
+df_weather %&gt;% head(10)</code></pre>
+<pre><code>##    product       init dataseries.timepoint dataseries.cloudcover
+## 1    astro 2020112418                    3                     9
+## 2    astro 2020112418                    6                     9
+## 3    astro 2020112418                    9                     9
+## 4    astro 2020112418                   12                     8
+## 5    astro 2020112418                   15                     8
+## 6    astro 2020112418                   18                     8
+## 7    astro 2020112418                   21                     9
+## 8    astro 2020112418                   24                     9
+## 9    astro 2020112418                   27                     9
+## 10   astro 2020112418                   30                     8
+##    dataseries.seeing dataseries.transparency dataseries.lifted_index
+## 1                  7                       6                      15
+## 2                  8                       5                      15
+## 3                  8                       5                      15
+## 4                  8                       4                      15
+## 5                  6                       4                      15
+## 6                  6                       3                      15
+## 7                  8                       3                      15
+## 8                  8                       4                      15
+## 9                  8                       5                      15
+## 10                 8                       6                      15
+##    dataseries.rh2m dataseries.wind10m.direction dataseries.wind10m.speed
+## 1               14                            S                        2
+## 2               14                            S                        2
+## 3               14                            S                        2
+## 4               13                            S                        2
+## 5               12                            S                        2
+## 6               10                            S                        2
+## 7               12                            S                        2
+## 8               13                           SW                        2
+## 9               14                           SW                        2
+## 10              14                           SW                        2
+##    dataseries.temp2m dataseries.prec_type
+## 1                  6                 none
+## 2                  4                 none
+## 3                  3                 none
+## 4                  3                 none
+## 5                  4                 none
+## 6                  6                 none
+## 7                  4                 none
+## 8                  3                 none
+## 9                  3                 none
+## 10                 3                 none</code></pre>
 <p>You can add more headers by adding more hashtags. These won’t be put into the table of contents</p>
 <div id="third-level-header" class="section level3">
-<h3><span class="header-section-number">1.2.1</span> third level header</h3>
+<h3><span class="header-section-number">2.0.1</span> third level header</h3>
 <p>Here’s an even lower level header</p>
 </div>
 </div>
-</div>
 <div id="my-second-post-note-the-order" class="section level1">
-<h1><span class="header-section-number">2</span> My second post (note the order)</h1>
+<h1><span class="header-section-number">3</span> My second post (note the order)</h1>
 <p>Last compiled: 2020-11-25</p>
 <p>I’m writing this tutorial going from the top down. And, this is how it will be printed. So, notice the second post is second in the list. If you want your most recent post to be at the top, then make a new post starting at the top. If you want the oldest first, do, then keep adding to the bottom</p>
 </div>
 <div id="adding-r-stuff" class="section level1">
-<h1><span class="header-section-number">3</span> Adding R stuff</h1>
+<h1><span class="header-section-number">4</span> Adding R stuff</h1>
 <p>So far this is just a blog where you can write in plain text and serve your writing to a webpage. One of the main purposes of this lab journal is to record your progress learning R. The reason I am asking you to use this process is because you can both make a website, and a lab journal, and learn R all in R-studio. This makes everything really convenient and in the same place.</p>
 <p>So, let’s say you are learning how to make a histogram in R. For example, maybe you want to sample 100 numbers from a normal distribution with mean = 0, and standard deviation = 1, and then you want to plot a histogram. You can do this right here by using an r code block, like this:</p>
 <pre class="r"><code>samples &lt;- rnorm(100, mean=0, sd=1)
