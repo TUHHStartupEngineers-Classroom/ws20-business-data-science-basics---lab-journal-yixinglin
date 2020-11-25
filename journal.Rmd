@@ -23,7 +23,7 @@ This is an `.Rmd` file. It is plain text with special features. Any time you wri
 # My first post (Bike Sales)
 
 ## 1. Analyze the sales by location (state) with a bar plot. 
-```{r plot, fig.width=10, fig.height=7}
+```{r plot_bike_sales1, fig.width=10, fig.height=7}
 library("tidyverse")
 library(lubridate)
 bike_orderlines_wrangled_tbl <- read.csv('./data/bike_orderlines.csv')
@@ -63,7 +63,7 @@ sales_by_loc_tbl %>% ggplot(aes(x = state, y = sales)) +
   ) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 ## 2. Analyze the sales by location and year (facet_wrap)
-```{r plot, fig.width=10, fig.height=7}
+```{r plot_bike_sales2, fig.width=10, fig.height=7}
 # 8.2 Analyze the sales by location and year (facet_wrap)
 sales_by_loc_year_tbl <- bike_orderlines_wrangled_loc_tbl %>%
   mutate(year = year(order_date)) %>%
