@@ -1,4 +1,5 @@
 # Lab Journal Website
+The site is ready to be published at https://tuhhstartupengineers.github.io/ws20-business-data-science-basics---lab-journal-yixinglin/.
 An R Markdown website template for a lab journal [https://tuhh-w11.github.io/lab_journal_website/](https://tuhh-w11.github.io/lab_journal_website/)
 
 To use this, click the download as .zip button to start from a local computer, or skip down to the github example to fork this and get started that way.
