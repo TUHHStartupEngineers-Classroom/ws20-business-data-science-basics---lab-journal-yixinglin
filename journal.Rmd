@@ -20,9 +20,9 @@ knitr::opts_chunk$set(message=FALSE,warning=FALSE, cache=TRUE)
 
 This is an `.Rmd` file. It is plain text with special features. Any time you write just like this, it will be compiled to normal text in the website. If you put a \# in front of your text, it will create a top level-header.
 
-# 1. Bike Sales
+# Bike Sales
 
-## 1. Analyze the sales by location (state) with a bar plot. 
+## Analyze the sales by location (state) with a bar plot. 
 ```{r plot_bike_sales1, fig.width=10, fig.height=7}
 library("tidyverse")
 library(lubridate)
@@ -62,7 +62,8 @@ sales_by_loc_tbl %>% ggplot(aes(x = state, y = sales)) +
     y = "Revenue"
   ) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
-## 2. Analyze the sales by location and year (facet_wrap)
+
+## Analyze the sales by location and year (facet_wrap)
 ```{r plot_bike_sales2, fig.width=10, fig.height=7}
 # 8.2 Analyze the sales by location and year (facet_wrap)
 sales_by_loc_year_tbl <- bike_orderlines_wrangled_loc_tbl %>%
@@ -91,6 +92,8 @@ labs(
 ```
 
 # Data Acquistition
+
+## Get some data via an API
 Weather forecast of Hamburg
 Provider: http://www.7timer.info/doc.php?lang=en
 ```{r table_weather forecast}
@@ -109,9 +112,9 @@ df_weather %>% head(10)
 
 ```
 
-You can add more headers by adding more hashtags. These won't be put into the table of contents
+## Scrape one of the competitor websites of canyon 
 
-### third level header
+
 
 Here's an even lower level header
 
