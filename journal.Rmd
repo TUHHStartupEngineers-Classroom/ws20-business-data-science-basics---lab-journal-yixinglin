@@ -14,15 +14,17 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(message=FALSE,warning=FALSE, cache=TRUE)
+#knitr::opts_chunk$set(message=FALSE,warning=FALSE, cache=FALSE)
 ```
 
 **IMPORTANT:** You can delete everything in here and start fresh. You might want to start by not deleting anything above this line until you know what that stuff is doing.
 
 This is an `.Rmd` file. It is plain text with special features. Any time you write just like this, it will be compiled to normal text in the website. If you put a \# in front of your text, it will create a top level-header.
 
-# Bike Sales
+# Challenge: Bike Sales
 
 ## Analyze the sales by location (state) with a bar plot. 
+
 ```{r plot_bike_sales1, fig.width=10, fig.height=7}
 library("tidyverse")
 library(lubridate)
@@ -63,7 +65,10 @@ sales_by_loc_tbl %>% ggplot(aes(x = state, y = sales)) +
   ) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+The diagram shows that North Rhine-Westphalia has the highest revenue. 
+
 ## Analyze the sales by location and year (facet_wrap)
+
 ```{r plot_bike_sales2, fig.width=10, fig.height=7}
 # 8.2 Analyze the sales by location and year (facet_wrap)
 sales_by_loc_year_tbl <- bike_orderlines_wrangled_loc_tbl %>%
@@ -89,15 +94,21 @@ labs(
   title = "Revenue by state and year",
   fill = "State" # Changes the legend name
 )
+rm(list = ls())
 ```
 
-# Data Acquistition
+
+
+# Challenge: Data Acquistition
 
 ## Get some data via an API
-Weather forecast of Hamburg
+
+Weather forecast of Hamburg. 
 Provider: http://www.7timer.info/doc.php?lang=en
-```{r table_weather forecast}
+
+```{r table_weather_forecast}
 library(httr)
+library(kableExtra)
 url = "http://www.7timer.info/bin/astro.php?lon=10.0&lat=53.6&ac=0&unit=metric&output=json&tzshift=0"
 resp <- GET(url)
 library(jsonlite)
@@ -107,18 +118,217 @@ df_weather  <-  resp %>%
   fromJSON() %>%
   as.data.frame()
 
-df_weather %>% head(10)
+df_weather %>% # %>% head(10)
+  kbl() %>%
+  kable_material(c("striped", "hover"))
 
+rm(list = ls())
 
 ```
 
-## Scrape one of the competitor websites of canyon 
+## Scrape one of the competitor websites of canyon
+
+Scrape one of the competitor websites of canyon, and create a small database.
 
 
+# Challenge: Patent Analysis
 
-Here's an even lower level header
+Load the data from files, i.e. "patent.tsv", "assignee.tsv" and "patent_assignee.tsv"
 
-# My second post (note the order)
+```{r load_data, eval=F}
+                      
+library(tidyverse)
+library(vroom)
+library(data.table)
+library(lubridate)
+# "patent.tsv", "patent.tsv", "assignee.tsv", "patent_assignee.tsv", and "uspc.tsv"
+workspace = "D://workspace//R//dsb//DS_101//DS_101//"
+# workspace = "./data/"
+col_types <- list(
+  id = col_character(),
+  type = col_character(),
+  number = col_character(),
+  country = col_character(),
+  date = col_date("%Y-%m-%d"),
+  abstract = col_character(),
+  title = col_character(),
+  kind = col_character(),
+  num_claims = col_double(),
+  filename = col_character(),
+  withdrawn = col_double()
+)
+
+patent_tbl <- vroom(
+  file       = paste(workspace, "patent.tsv", sep = ""), 
+  delim      = "\t", 
+  col_names  = names(col_types),
+  col_types  = col_types,
+  na         = c("", "NA", "NULL"),
+  skip = 1
+)
+setDT(patent_tbl)
+
+col_types <- list(
+  id = col_character(),
+  type = col_double(),
+  name_first = col_character(),
+  name_last = col_character(),
+  organization = col_character()
+)
+
+assignee_tbl <- vroom(
+  file       = paste(workspace, "assignee.tsv", sep = ""), 
+  delim      = "\t", 
+  col_names  = names(col_types),
+  col_types  = col_types,
+  na         = c("", "NA", "NULL"),
+  skip = 1
+)
+
+setDT(assignee_tbl)
+
+col_types <- list(
+  patent_id = col_character(),
+  assignee_id = col_character(),
+  location_id = col_character()
+)
+
+pat_asgn_tbl <- vroom(
+  file       = paste(workspace, "patent_assignee.tsv",  sep = ""), 
+  delim      = "\t", 
+  col_names  = names(col_types),
+  col_types  = col_types,
+  na         = c("", "NA", "NULL"),
+  skip = 1
+)
+
+setDT(pat_asgn_tbl)
+
+col_types <- list(
+  uuid = col_character(),
+  patent_id = col_character(),
+  mainclass_id = col_character(),
+  subclass_id = col_character(),
+  sequence = col_double()
+)
+
+uspc_tbl <- vroom(
+  file       = paste(workspace,  "uspc.tsv",  sep = ""),
+  delim      = "\t", 
+  col_names  = names(col_types),
+  col_types  = col_types,
+  na         = c("", "NA", "NULL"),
+  skip = 1
+)
+
+setDT(uspc_tbl)
+
+```
+
+## Patent Dominance
+
+10 US companies with the most assigned/granted patents.
+
+```{r eval=F}
+# Combine tables by left Join
+combined_tbl <- assignee_tbl[type==2, c(1,2,5)]  %>% setnames("id", "assignee_id") # us company
+combined_tbl <- merge(pat_asgn_tbl, combined_tbl, by="assignee_id", all.x = T) 
+combined_tbl <- merge(patent_tbl, combined_tbl, by.y = "patent_id", by.x = "number", all.x = T)
+combined_tbl <- combined_tbl[, c("id","date","title","assignee_id","organization")][, year := year(date)] 
+num_patents_comp <- combined_tbl[!is.na(organization), 
+                                 .N, 
+                                 by = organization][order(N,  decreasing = TRUE)][1:10]
+setnames(num_patents_comp, "N", "number.of.patents")
+write_rds (num_patents_comp, "data/num_patents_comp.rds")
+
+```
+
+```{r}
+library(readr)
+library(data.table)
+library(kableExtra)
+num_patents_comp <- read_rds("data/num_patents_comp.rds")
+
+num_patents_comp[1:10, ] %>% 
+  kbl(caption = "10 US companies with the most assigned/granted patents") %>%
+  kable_material(c("striped", "hover"))
+```
+
+## Recent patent acitivity
+
+The top 10 US companies with the most new granted patents for 2019.
+
+
+```{r eval=F}
+num_patents_comp2019 <- combined_tbl[year == 2019, ][!is.na(organization), 
+                                                     .N, by = organization][order(N,  decreasing = TRUE)][1:10]
+setnames(num_patents_comp2019, "N", "number.of.patents")
+write_rds (num_patents_comp2019, "data/num_patents_comp2019.rds")
+
+```
+
+```{r}
+num_patents_comp2019 <- read_rds("data/num_patents_comp2019.rds")
+num_patents_comp2019[1:10, ] %>% 
+  kbl(caption = "The top 10 US companies with the most new granted patents for 2019.") %>%
+  kable_material(c("striped", "hover"))
+```
+
+
+## Innovation in Tech
+
+Goal: list top 5 USPTO tech main classes for the top 10 companies (worldwide) with the most patents. This task will be seperated into 2 steps.
+
+###  The top 10 companies (worldwide) with the most patents.
+
+```{r eval=F}
+# Combine the tables
+combined_tbl <- assignee_tbl[,c(1, 2, 5)]  %>% setnames("id", "assignee_id") # us company
+combined_tbl <- merge(pat_asgn_tbl, combined_tbl, by="assignee_id", all.x = T) 
+combined_tbl <- merge(patent_tbl, combined_tbl[, type:=NULL], by.y = "patent_id", by.x = "number", all.x = T)
+combined_tbl <- combined_tbl[, c("id", "date", "title", "assignee_id", "organization")]
+# Find the top 10 companies (worldwide) with the most patents
+num_patents_comp= combined_tbl[!is.na(organization), 
+                               .N, 
+                               by = organization][order(N,  decreasing = TRUE)][1:10]
+setnames(num_patents_comp, "N", "number.of.patents")
+write_rds (num_patents_comp, "data/num_patents_comp_world.rds")
+```
+
+```{r}
+num_patents_comp = read_rds("data/num_patents_comp_world.rds")
+num_patents_comp[1:10, ] %>% 
+  kbl(caption = "The top 10 companies (worldwide) with the most patents") %>%
+  kable_material(c("striped", "hover"))
+
+```
+
+
+### List top 5 USPTO for the 10 contries
+
+```{r eval=F}
+combined_tbl <- merge(combined_tbl, num_patents_comp[, flag := T], by = "organization")
+combined_tbl <- combined_tbl[flag == T, c("organization","date", "id", "assignee_id")] # only contain 10 countries
+combined_tbl <- merge(uspc_tbl, combined_tbl, by.x = "patent_id", by.y = "id",  all.x = T)
+combined_tbl <- combined_tbl[!is.na(organization)]
+main_classes_top5 <- combined_tbl[, .N, by="mainclass_id"][order(N,  decreasing = TRUE)][1:5]
+setnames(main_classes_top5, "N", "num_classes")
+write_rds (main_classes_top5, "data/main_classes_top5.rds")
+```
+
+```{r}
+main_classes_top5 = read_rds("data/main_classes_top5.rds")
+# head(main_classes_top5)
+main_classes_top5[1:5, ] %>% 
+  kbl(caption = " Top 5 USPTO for the 10 contries") %>%
+  kable_material(c("striped", "hover"))
+```
+
+```{r}
+# rm("combined_tbl", "assignee_tbl", "pat_asgn_tbl", "uspc_tbl", "patent_tbl")
+rm(list = ls())
+```
+
 
 Last compiled: `r Sys.Date()`
 
