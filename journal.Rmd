@@ -17,9 +17,6 @@ knitr::opts_chunk$set(message=FALSE,warning=FALSE, cache=TRUE)
 #knitr::opts_chunk$set(message=FALSE,warning=FALSE, cache=FALSE)
 ```
 
-**IMPORTANT:** You can delete everything in here and start fresh. You might want to start by not deleting anything above this line until you know what that stuff is doing.
-
-This is an `.Rmd` file. It is plain text with special features. Any time you write just like this, it will be compiled to normal text in the website. If you put a \# in front of your text, it will create a top level-header.
 
 # Challenge: Bike Sales
 
@@ -318,7 +315,6 @@ write_rds (main_classes_top5, "data/main_classes_top5.rds")
 
 ```{r}
 main_classes_top5 = read_rds("data/main_classes_top5.rds")
-# head(main_classes_top5)
 main_classes_top5[1:5, ] %>% 
   kbl(caption = " Top 5 USPTO for the 10 contries") %>%
   kable_material(c("striped", "hover"))
@@ -329,20 +325,143 @@ main_classes_top5[1:5, ] %>%
 rm(list = ls())
 ```
 
+# COVID-19
 
-Last compiled: `r Sys.Date()`
+## Map the time course of the cumulative Covid-19 cases
 
-I'm writing this tutorial going from the top down. And, this is how it will be printed. So, notice the second post is second in the list. If you want your most recent post to be at the top, then make a new post starting at the top. If you want the oldest first, do, then keep adding to the bottom
+```{r eval=F}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+covid_data_tbl <- read_csv("https://opendata.ecdc.europa.eu/covid19/casedistribution/csv")
+covid_data_tbl$date <- as.Date(covid_data_tbl$dateRep, "%d/%m/%Y")
 
-# Adding R stuff
+# Obtain date in 2020 in 5 countries
+countries = c("United_States_of_America", "United_Kingdom", "Spain", "France", "Germany")
+covid_data2020_tbl <- covid_data_tbl %>% select(countriesAndTerritories, cases, day, month, 
+                                                year, date, continentExp) %>%
+  filter(countriesAndTerritories %in% countries, year == 2020)
 
-So far this is just a blog where you can write in plain text and serve your writing to a webpage. One of the main purposes of this lab journal is to record your progress learning R. The reason I am asking you to use this process is because you can both make a website, and a lab journal, and learn R all in R-studio. This makes everything really convenient and in the same place. 
+library(plyr)
+# Data for Europe
+data_eu2020 <- covid_data_tbl[covid_data_tbl$continentExp == "Europe" & covid_data_tbl$year == 2020,]
+data_eu2020 <- aggregate(data_eu2020$cases, by=list(date = data_eu2020$date), FUN=sum) %>% setNames(c("date", "cases"))
+data_eu2020$countriesAndTerritories <- "Europe"
+covid_data2020_tbl <- rbind.fill(covid_data2020_tbl, data_eu2020)  
+detach("package:plyr", unload=TRUE)
 
-So, let's say you are learning how to make a histogram in R. For example, maybe you want to sample 100 numbers from a normal distribution with mean = 0, and standard deviation = 1, and then you want to plot a histogram. You can do this right here by using an r code block, like this:
+# Calculate cumulative cases
+covid_data2020_tbl  <- 
+      # sort by countries and date
+      covid_data2020_tbl[order(covid_data2020_tbl$countriesAndTerritories, covid_data2020_tbl$date),]  %>%
+      # calculate the cumulative cases grouped by countries
+      group_by(countriesAndTerritories) %>%
+      mutate(cum_cases = cumsum(cases))
 
-```{r}
-samples <- rnorm(100, mean=0, sd=1)
-hist(samples)
+cum_cases_ends <- covid_data2020_tbl %>% 
+  group_by(countriesAndTerritories) %>% top_n(1, cum_cases) %>% 
+        arrange(desc(cum_cases))  %>% 
+  rename(max_cum_cases = cum_cases)
+
+covid_data2020_tbl<- merge(x = covid_data2020_tbl, y = select(cum_cases_ends, countriesAndTerritories, max_cum_cases)
+      , by = "countriesAndTerritories", all.x = TRUE)
+
+covid_data2020_tbl <- covid_data2020_tbl %>% mutate(cum_cases_million =cum_cases/10^6)  %>% arrange(desc(max_cum_cases)) 
+  
+write_rds (covid_data2020_tbl, "data/covid_data2020_tbl.rds")
+write_rds (cum_cases_ends, "data/cum_cases_ends.rds")
+
 ```
 
-When you knit this R Markdown document, you will see that the histogram is printed to the page, along with the R code. This document can be set up to hide the R code in the webpage, just delete the comment (hashtag) from the cold folding option in the yaml header up top. For purposes of letting yourself see the code, and me see the code, best to keep it the way that it is. You'll learn that all of these things and more can be customized in each R code block.
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+covid_data2020_tbl = read_rds("data/covid_data2020_tbl.rds")
+cum_cases_ends = read_rds("data/cum_cases_ends.rds")
+
+covid_data2020_tbl %>% ggplot(aes(x=date, y=cum_cases_million, color = countriesAndTerritories)) +
+  geom_line(size = 0.9, linetype = 1) + 
+  scale_x_date(date_labels = "%B", expand=c(0,20), date_breaks = "months") + 
+  scale_y_continuous(labels = scales::unit_format(unit = "M"))+
+  xlab("Year 2020") + ylab("Cumulative Cases")  + 
+  labs(title = "COVID-19 cofirmed cases worldwide", color = "Continent/Country",
+       subtitle = "As of 11/02/2020, Europe had more cases than the USA ") + 
+  
+  scale_color_manual(values=c("green3", "blue",  "#48D1CC",  "#FFD700" , "#FF00FF" , "deeppink1")) + 
+  ggrepel::geom_label_repel(data = cum_cases_ends[1:2,], show.legend= FALSE,
+                            #min.segment.length = unit(0, 'lines'), nudge_y = 1,
+            mapping=aes(x=date, y=max_cum_cases/10^6, 
+              label=scales::comma(max_cum_cases), 
+              ), 
+              label.padding=0.3, 
+              point.padding = 3, size = 5, nudge_x = -200) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45), 
+        panel.border = element_blank(),
+        legend.position="bottom")
+
+```
+
+## Visualize the distribution of the mortality rate
+
+```{r eval=F}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+covid_data_tbl <- read_csv("https://opendata.ecdc.europa.eu/covid19/casedistribution/csv")
+covid_data_tbl$date <- as.Date(covid_data_tbl$dateRep, "%d/%m/%Y")
+
+covid_sum_by_countries <- covid_data_tbl %>%  group_by(countriesAndTerritories) %>% 
+                summarise(deaths = sum(deaths), cases = sum(cases)) 
+covid_population_by_countries <- covid_data_tbl %>% group_by(countriesAndTerritories) %>%
+                summarise(popData2019 = max(popData2019)) 
+
+covid_sum_by_countries = merge(x = covid_sum_by_countries, 
+          y = covid_population_by_countries, 
+          by = "countriesAndTerritories", all.x = T)
+
+covid_sum_by_countries <- covid_sum_by_countries %>% mutate(mortality.rate = deaths/popData2019)
+
+write_rds (covid_sum_by_countries, "data/covid_sum_by_countries.rds")
+
+```
+
+```{r}
+covid_sum_by_countries = read_rds("data/covid_sum_by_countries.rds")
+
+world <- map_data("world")
+
+covid_sum_by_countries <- covid_sum_by_countries %>% 
+  mutate(across(countriesAndTerritories, str_replace_all, "_", " ")) %>%
+  mutate(countriesAndTerritories = case_when(
+    
+    countriesAndTerritories == "United Kingdom" ~ "UK",
+    countriesAndTerritories == "United States of America" ~ "USA",
+    countriesAndTerritories == "Czechia" ~ "Czech Republic",
+    TRUE ~ countriesAndTerritories
+    
+  ))
+
+covid_sum_by_countries %>% ggplot(aes(map_id = countriesAndTerritories)) +
+      labs(title = "Confirmed COVID-19 deaths relative to the size of the population",
+          subtitle = "More than 1.2 Million confirmed COVID-19 deaths worldwide", 
+          caption = format(Sys.time(), "Date: %d/%m/%Y")) +
+      geom_map(dat=world, map = world, 
+           aes(map_id=region), fill="#CCCCCC", color="white") +
+      geom_map(aes(fill = mortality.rate), map = world, color = "white", size = 0.1) +
+      expand_limits(x = world$long, y = world$lat) +
+      scale_fill_gradient(low='red', high='#202020', 
+                          name = "Mortality Rate", 
+                          breaks = c(0, 3e-4, 6e-4, 9e-4, 12e-4, 15e-4), 
+                          labels = c("0.000%", "0.030%", "0.060%", "0.090%", "0.120%", "0.150%"))+
+      theme_bw() 
+
+
+```
+
+
+
