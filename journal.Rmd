@@ -520,13 +520,7 @@ covid_data_tbl <- read_csv("https://opendata.ecdc.europa.eu/covid19/casedistribu
 covid_data_tbl$date <- as.Date(covid_data_tbl$dateRep, "%d/%m/%Y")
 
 covid_sum_by_countries <- covid_data_tbl %>%  group_by(countriesAndTerritories) %>% 
-                summarise(deaths = sum(deaths), cases = sum(cases)) 
-covid_population_by_countries <- covid_data_tbl %>% group_by(countriesAndTerritories) %>%
-                summarise(popData2019 = max(popData2019)) 
-
-covid_sum_by_countries = merge(x = covid_sum_by_countries, 
-          y = covid_population_by_countries, 
-          by = "countriesAndTerritories", all.x = T)
+                summarise(deaths = sum(deaths), cases = sum(cases), popData2019 = max(popData2019)) 
 
 covid_sum_by_countries <- covid_sum_by_countries %>% mutate(mortality.rate = deaths/popData2019)
 
