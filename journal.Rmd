@@ -1,7 +1,7 @@
 ---
 title: "Journal (reproducible report)"
 author: "Yixing Lin"
-date: "2020-11-05"
+date: "`r format(Sys.time(), '%d.%m.%Y')`"
 output:
   html_document:
     toc: true
@@ -73,6 +73,7 @@ sales_by_loc_year_tbl <- bike_orderlines_wrangled_loc_tbl %>%
   select(state, year, total_price) %>%
   group_by(year, state) %>% 
   summarize(sales = sum(total_price)) %>%
+  ungroup() %>%
   mutate(sales_text = scales::dollar(sales, big.mark = ".", 
                                      decimal.mark = ",", 
                                      prefix = "", 
@@ -106,7 +107,7 @@ Provider: http://www.7timer.info/doc.php?lang=en
 ```{r table_weather_forecast}
 library(httr)
 library(kableExtra)
-url = "http://www.7timer.info/bin/astro.php?lon=10.0&lat=53.6&ac=0&unit=metric&output=json&tzshift=0"
+url = "http://www.7timer.info/bin/astro.php?lon=+10.000&lat=+53.6000&ac=0&unit=metric&output=json&tzshift=0"
 resp <- GET(url)
 library(jsonlite)
 df_weather  <-  resp %>% 
@@ -115,18 +116,121 @@ df_weather  <-  resp %>%
   fromJSON() %>%
   as.data.frame()
 
-df_weather %>% # %>% head(10)
+head(df_weather, 10) %>%
   kbl() %>%
-  kable_material(c("striped", "hover"))
+ kable_paper("hover", full_width = F)
+   
 
 rm(list = ls())
 
 ```
 
-## Scrape one of the competitor websites of canyon
+## Scrape a competitor websites of canyon
 
-Scrape one of the competitor websites of canyon, and create a small database.
+Scrape competitor websites of canyon (https://www.rosebikes.de/), and create a small database.
 
+```{r eval=F}
+library(tidyverse) # Main Package - Loads dplyr, purrr, etc.
+library(rvest)     # HTML Hacking & Web Scraping
+library(xopen)     # Quickly opening URLs
+library(jsonlite)  # converts JSON files to R objects
+library(glue)      # concatenate strings
+library(stringi)   # character string/text processing
+
+
+# Get URL for each category.
+get_bike_category_data <- function (bike_family_url) {
+  
+  html_bike_family  <- read_html(bike_family_url)
+  
+  bike_category_name_tbl <- html_bike_family %>%
+    html_nodes('.catalog-category-bikes__list-item .catalog-category-bikes__title-text') %>%
+    html_text() %>%
+    stringr::str_replace_all("[\n\r]", "") %>%
+    enframe(name = "position", value = "category") %>%
+    as_tibble()
+  
+  bike_category_url_tbl <- html_bike_family %>%
+    html_nodes('.catalog-category-bikes__list-item .catalog-category-bikes__button') %>%
+    html_attr("href") %>%
+    enframe(name = "position", value = "url") %>% 
+    mutate(url = glue(paste(url_home, "{url}", sep=""))) %>%
+    distinct(url) %>%
+    as_tibble()
+  
+  bike_category_tbl <- tibble(bike_category_name_tbl,  bike_category_url_tbl)
+}
+
+# Get URL for each individual bike of each product category.
+get_bike_model_data <- function(bike_category_url) {
+  
+  html_bike_category  <- read_html(bike_category_url)
+  bike_model_name_tbl <- html_bike_category %>%
+    html_nodes('.catalog-category-model__top .catalog-category-model__title') %>%
+    html_text() %>%
+    stringr::str_replace_all("[\n\r]", "")  %>%
+    enframe(name = "position", value = "model.name") %>%
+    as_tibble()
+  
+  bike_model_price_tbl <- html_bike_category %>%
+    html_nodes('.product-tile-price__wrapper .catalog-category-model__price-current-value') %>%
+    html_text() %>%
+    stringr::str_replace_all("[\n\r€]", "")  %>%
+    readr::parse_number(locale = readr::locale(decimal_mark = ",")) %>%
+    enframe(name = "position", value = "price.in.euro") %>%
+    as_tibble()
+  bike_model_tbl <- tibble(bike_model_name_tbl,  bike_model_price_tbl[, "price.in.euro"])
+}
+
+# Read the homepage
+url_home = "https://www.rosebikes.de"
+url_bike = paste(url_home, "/fahrräder", sep="")
+xopen(url_bike)
+html_home  <- read_html(url_bike)
+# Step 1.1  Get bike family urls
+## extract bike family
+bike_family_tbl <- html_home  %>%
+    html_nodes(css = ".catalog-navigation__list .catalog-navigation__link")  %>% 
+    html_attr("href") %>% discard(.p = ~stringr::str_detect(.x,"sale|zoovu|OUTLET|kinder|e-bike"))  %>% 
+    stringr::str_extract("(?<=\\/fahrräder\\/)[a-zA-z0-9äöüßÄÖÜ-]+" )  %>%
+    enframe(name = "position", value = "family") %>%
+    mutate(url = glue(paste(url_home, "/fahrräder/{family}", sep=""))) 
+
+
+bike_data_tbl <- tibble()
+for (i in seq_along(bike_family_tbl$url)) {
+  print (i)
+  print (bike_family_tbl$url[i])
+  bike_family_url <- bike_family_tbl$url[i]
+  bike_family <- bike_family_tbl$family[i]
+  bike_category_tbl <- get_bike_category_data(bike_family_url)
+  Sys.sleep(5)
+  
+  for (j in seq_along(bike_category_tbl$url)) {
+    bike_category_url <- bike_category_tbl$url[j]
+    bike_category <- bike_category_tbl$category[j]
+    print (j)
+    print (bike_category)
+    bike_model_tbl <- get_bike_model_data(bike_category_url)
+    Sys.sleep(5)
+    bike_model_tbl$category <- bike_category
+    bike_model_tbl$family <- bike_family
+    
+    bike_data_tbl <- bind_rows(bike_data_tbl, bike_model_tbl)
+  
+  }
+}
+saveRDS(bike_data_tbl, "data/bike_data_tbl.rds")
+```
+
+```{r}
+bike_data_tbl <-  readRDS("data/bike_data_tbl.rds") %>%
+  select("model.name" , "price.in.euro", "category", "family")
+
+head(bike_data_tbl, 10) %>%
+kbl() %>%
+kable_paper("hover", full_width = F)
+```
 
 # Challenge: Patent Analysis
 
@@ -248,7 +352,7 @@ num_patents_comp <- read_rds("data/num_patents_comp.rds")
 
 num_patents_comp[1:10, ] %>% 
   kbl(caption = "10 US companies with the most assigned/granted patents") %>%
-  kable_material(c("striped", "hover"))
+  kable_paper("hover", full_width = F)
 ```
 
 ## Recent patent acitivity
@@ -268,7 +372,7 @@ write_rds (num_patents_comp2019, "data/num_patents_comp2019.rds")
 num_patents_comp2019 <- read_rds("data/num_patents_comp2019.rds")
 num_patents_comp2019[1:10, ] %>% 
   kbl(caption = "The top 10 US companies with the most new granted patents for 2019.") %>%
-  kable_material(c("striped", "hover"))
+  kable_paper("hover", full_width = F)
 ```
 
 
@@ -296,7 +400,7 @@ write_rds (num_patents_comp, "data/num_patents_comp_world.rds")
 num_patents_comp = read_rds("data/num_patents_comp_world.rds")
 num_patents_comp[1:10, ] %>% 
   kbl(caption = "The top 10 companies (worldwide) with the most patents") %>%
-  kable_material(c("striped", "hover"))
+  kable_paper("hover", full_width = F)
 
 ```
 
@@ -317,7 +421,7 @@ write_rds (main_classes_top5, "data/main_classes_top5.rds")
 main_classes_top5 = read_rds("data/main_classes_top5.rds")
 main_classes_top5[1:5, ] %>% 
   kbl(caption = " Top 5 USPTO for the 10 contries") %>%
-  kable_material(c("striped", "hover"))
+  kable_paper("hover", full_width = F)
 ```
 
 ```{r}
@@ -325,7 +429,7 @@ main_classes_top5[1:5, ] %>%
 rm(list = ls())
 ```
 
-# COVID-19
+# Challenge: COVID-19
 
 ## Map the time course of the cumulative Covid-19 cases
 
@@ -454,11 +558,18 @@ covid_sum_by_countries %>% ggplot(aes(map_id = countriesAndTerritories)) +
            aes(map_id=region), fill="#CCCCCC", color="white") +
       geom_map(aes(fill = mortality.rate), map = world, color = "white", size = 0.1) +
       expand_limits(x = world$long, y = world$lat) +
-      scale_fill_gradient(low='red', high='#202020', 
+      scale_fill_gradient(low='red', high='#101010', 
                           name = "Mortality Rate", 
                           breaks = c(0, 3e-4, 6e-4, 9e-4, 12e-4, 15e-4), 
                           labels = c("0.000%", "0.030%", "0.060%", "0.090%", "0.120%", "0.150%"))+
-      theme_bw() 
+      
+      theme_bw() +
+       theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.y=element_blank())
 
 
 ```
